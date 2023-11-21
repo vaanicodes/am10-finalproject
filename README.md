@@ -28,4 +28,7 @@ This strategy begins with a thorough analysis of wine quality datasets, enabling
 
 Additionally, our analysis of e-commerce data reveals a growing but still underexploited market for online alcohol sales in Europe. This presents a significant opportunity for Amazon to enter and expand in this sector. Europe, despite its rich wine heritage and production, hasn't yet emerged as a top revenue-generating region in the e-commerce alcohol market, indicating untapped potential. Amazon's entry into this space, backed by its sophisticated e-commerce platform and customer reach, could effectively capitalize on this growth forecast, making it a timely and strategic venture.
 
+## Pricing Strategy
+To develop a comprehensive pricing strategy for our wine products, we employ box plots to analyze the pricing landscape of our competitors. This approach allows us to visualize the distribution and median prices of wines in key markets, providing insights into current pricing trends and helping us develop our pricing strategy.
+
 
