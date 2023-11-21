@@ -8,12 +8,14 @@ Amazon's potential venture into the wine-making industry represents a strategic 
 This project entails a comprehensive analysis of various wine-related datasets to formulate a strategic plan for Amazon's potential entry into the wine production industry. The analysis encompasses worldwide consumption and production data, European market insights, wine quality assessments, and pricing strategies. By leveraging these data sources, the goal is to equip Amazon with a data-driven strategy that enables it to thrive in the wine making industry.
 
 ## Datasets Used
-1. Wine export volume in Europe by country 2022 | Statista - https://www.statista.com/statistics/1247565/wine-export-volume-europe-by-count
-2. Wine export value in Europe by country 2022 | Statista - https://www.statista.com/statistics/1247569/wine-export-value-europe-by-country
-3. Alcohol e-commerce top markets 2023 | Statista - https://www.statista.com/forecasts/1414995/alcohol-e-commerce-revenue-by-country
-4. Wine e-commerce revenue worldwide 2027 | Statista - https://www.statista.com/forecasts/1387335/global-wine-ecommerce-market-size
-5. Wine - UCI Machine Learning Repository - https://archive.ics.uci.edu/ml/datasets/wine
-6. Wine Rating & Price - https://www.kaggle.com/datasets/budnyak/wine-rating-and-price
+1. Wine consumption per person - https://ourworldindata.org/grapher/wine-consumption-per-person
+2. UNdata | record view | Wine - https://data.un.org/Data.aspx?q=wine&d=FAO&f=itemCode%3A564
+3. Wine export volume in Europe by country 2022 | Statista - https://www.statista.com/statistics/1247565/wine-export-volume-europe-by-count
+4. Wine export value in Europe by country 2022 | Statista - https://www.statista.com/statistics/1247569/wine-export-value-europe-by-country
+5. Alcohol e-commerce top markets 2023 | Statista - https://www.statista.com/forecasts/1414995/alcohol-e-commerce-revenue-by-country
+6. Wine e-commerce revenue worldwide 2027 | Statista - https://www.statista.com/forecasts/1387335/global-wine-ecommerce-market-size
+7. Wine - UCI Machine Learning Repository - https://archive.ics.uci.edu/ml/datasets/wine
+8. Wine Rating & Price - https://www.kaggle.com/datasets/budnyak/wine-rating-and-price
 
 
 ## Analysing Market Trends
