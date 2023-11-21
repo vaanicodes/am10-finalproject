@@ -1,0 +1,425 @@
+---
+title: "Amazon Wine Making Business"
+author: "Study group 10: Ben Spertus, Emil Erne, Jing Zhou, Salome Corcos, Shengjie Shi, Vaani Rawat"
+date: "2023-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# Load the necessary library
+library(readr)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(reshape2)
+library(tidyverse)
+library(lubridate)
+library(vroom)
+library(janitor)
+library(skimr)
+library(vroom)
+library(mice) 
+library(VIM)
+library(countrycode)
+library(ggthemes)
+library(grid)
+library(png)
+library(ggimage)
+library(rnaturalearth)
+library(sf)
+library(lwgeom)
+library(readxl)
+```
+
+# Loading and Cleaning Data
+
+```{r}
+# Load required libraries
+library(vroom)  # for fast data import
+library(dplyr)  # for data manipulation
+
+# Load and clean the wine production dataset
+wine_production <- vroom('/Users/vaanirawat/Desktop/Wine Dataset/UNdata_Export_20231119_114926894.csv') %>% 
+  clean_names() %>%  # Converts all column names to lowercase and replaces spaces with underscores
+  select(-value_footnotes)  # Removes the 'value_footnotes' column from the dataset
+
+# Extract unique country or area names from the dataset
+unique_names <- unique(wine_production$country_or_area)
+
+# Get a summary glimpse of the wine production dataset
+glimpse(wine_production)
+```
+
+```{r}
+# Load and clean the wine consumption data
+wine_consumption <- vroom('/Users/vaanirawat/Desktop/Wine Dataset/wine-consumption-per-person (1).csv') %>% 
+  clean_names()  # Converts all column names to lowercase and replaces spaces with underscores
+
+# Rename columns to more understandable names
+wine_consumption <- rename(
+  wine_consumption, 
+  wine_consumption = indicator_alcohol_recorded_per_capita_15_consumption_in_litres_of_pure_alcohol_beverage_types_wine
+)  # Renames a lengthy column name to 'wine_consumption'
+
+wine_consumption <- rename(
+  wine_consumption, 
+  Country = entity
+)  # Renames the 'entity' column to 'Country'
+
+# Standardize Country Names
+wine_consumption <- wine_consumption %>% 
+  mutate(
+    Country = countrycode(
+      Country, 
+      origin = 'country.name',
+      destination = 'country.name'
+    )
+  )
+  # Standardizes country names using the countrycode package.
+  # Converts any variation of country names to a standard format.
+```
+
+```{r}
+#calculate production by region in 2019
+#create df to do production calc by region
+
+wine_data_summary <- wine_production %>% 
+ mutate(country_or_area = countrycode(country_or_area, origin= 'country.name',
+                       destination = 'country.name'
+                       ))
+
+# Get a vector of all valid country names
+valid_countries <- countrycode::codelist$country.name.en
+
+# Filter ata to only include rows where country_or_area is a valid country name
+wine_data_summary <- wine_data_summary %>% 
+  filter(country_or_area %in% valid_countries) %>% 
+  filter(year == 2019) %>% 
+  group_by(country_or_area) %>% 
+  summarize(country_or_area,Total = sum(value)) 
+
+
+glimpse(wine_data_summary)
+```
+
+# Production and Consumption Visualisations Worldwide 
+
+```{r}
+# Get the world map
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Attempt to correct invalid geometries
+world$geometry <- st_make_valid(world$geometry)
+
+# Join data with world map
+world_wine <- left_join(world, wine_data_summary, by = c("name" = "country_or_area"))
+
+# Filter out NAs
+world_wine <- world_wine %>% filter(!is.na(Total))
+
+# Plot map with heatmap for wine production
+ggplot(data = world_wine) +
+  geom_sf(aes(fill = Total), color = "white") +
+  scale_fill_gradient(low = "#F1B6DA", high = "#7B1F3A", na.value = "lightgray",
+                      guide = guide_colourbar(title.position = "top", 
+                                              title.hjust = 0.5,
+                                              barwidth = 20, 
+                                              barheight = 1,
+                                              nbin = 500, 
+                                              label.position = "bottom")) +
+  coord_sf(xlim = c(-130, 160), ylim = c(-50, 75), expand = FALSE) +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 8), 
+        legend.title = element_text(size = 10),
+        plot.subtitle = element_text(color = "azure4")) +
+  labs(fill = "Wine Production (Tonnes)", 
+       title = "World Wine Production",
+       subtitle = "By value in tonnes")
+```
+```{r}
+# Assuming wine_data_summary has columns 'country_or_area' and 'Total'
+top_5_wine_producing_countries <- wine_data_summary %>% 
+    arrange(desc(Total)) %>% 
+    select(country_or_area, Total) %>%
+  unique()%>%
+  head(5)
+
+# Print the top 5 countries
+print(top_5_wine_producing_countries)
+```
+
+
+```{r}
+# Calculate summary table wine consumption 2019
+wine_consumption_summary <- wine_consumption %>%
+  filter(year == 2019) %>% 
+  group_by(Country) %>% 
+  summarize(Total = sum(wine_consumption))
+
+# Use prior centroid calculation and join consumption 
+world_consumption <- left_join(world, wine_consumption_summary, by = c("name" = "Country"))
+
+# Filter out NAs
+world_consumption <- world_consumption %>% filter(!is.na(Total))
+
+# Plot map with heatmap for wine consumption
+ggplot(data = world_consumption) +
+  geom_sf(aes(fill = Total), color = "white") +
+  scale_fill_gradient(low = "light blue", high = "dark blue", na.value = "lightgray") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        plot.subtitle = element_text(color = "azure4")) + 
+  labs(fill = "Wine Consumption (Litres)", 
+       title = "World Wine Consumption",
+       subtitle = "By per capita (15+) consumption (in litres of pure alcohol)")
+```
+```{r}
+# Assuming wine_consumption_summary has columns 'Country' and 'Total'
+top_5_wine_consuming_countries <- wine_consumption_summary %>%
+    arrange(desc(Total)) %>%
+    slice_max(order_by = Total, n = 5) %>%
+    select(Country, Total)
+
+# Print the top 5 countries
+print(top_5_wine_consuming_countries)
+
+```
+
+
+The observation that the top five wine-consuming countries are in Europe, and three of the top five wine-producing countries are also European, highlights the significance of Europe in the global wine industry. This makes Europe a strategic focus area for setting up a wine-making business.
+
+# Analysing European Market
+
+## Historic and Forecasted Revenue
+
+```{r}
+# Read the Excel file containing European wine market data
+european_market <- read_xlsx("european wine.xlsx")
+
+# Create a bar graph using ggplot
+ggplot(european_market, aes(x = Year, y = `Revenue of the wine market in Europe from 2014 to 2027 (in billion U.S. dollars)`)) +
+  geom_bar(stat = "identity", fill = "deepskyblue4") +  # Creates bars with 'deepskyblue4' color
+  geom_text(
+    aes(label = round(`Revenue of the wine market in Europe from 2014 to 2027 (in billion U.S. dollars)`, 2)), 
+    vjust = -0.5,  # Positions the labels above the bars
+    size = 3,
+    color = "black"  # Sets the label text color to black
+  ) +
+  theme_minimal() +  # Applies a minimal theme to the plot
+  theme(
+    axis.text.y = element_text(angle = 0, hjust = 1),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(margin = margin(t = 10, b = 0)),  # Shifts the x-axis title down
+    plot.caption = element_text(hjust = 0, color = "darkgrey"),
+    plot.subtitle = element_text(color = "azure4")
+  ) +
+  labs(
+    title = "Revenue of the Wine Market in Europe from 2014 to 2027",  # Sets the plot title
+    subtitle = "(in billion U.S. dollars)",  # Sets the subtitle
+    x = "Year",  # Labels the x-axis
+    y = "Revenue (in billion U.S. dollars)",  # Labels the y-axis
+    caption = "Source: Statista Market Insights"  # Sets the plot caption
+  )
+```
+## Volume of Exported European Wine in 2022
+
+```{r}
+# Read in the data from an Excel file
+european_exports <- read_xlsx("europe exports.xlsx")
+
+# Create a horizontal bar chart using ggplot
+ggplot(european_exports, aes(y = reorder(Country, `Volume of wine exports in Europe in 2022, by country (in million liters)`), 
+                             x = `Volume of wine exports in Europe in 2022, by country (in million liters)`)) +
+  geom_bar(stat = "identity", fill = "deepskyblue4") +  # Bar plot with bars filled in deep sky blue color
+  geom_text(aes(label = round(`Volume of wine exports in Europe in 2022, by country (in million liters)`, 2)), 
+            hjust = -0.1, # Positions the labels to the right of the bar
+            size = 3,
+            color = "black") +  # Adds text labels with the rounded volume values
+  theme_minimal() +  # Applies a minimalistic theme to the plot
+  theme(
+    plot.margin = margin(5.5, 40, 5.5, 5.5), # Customizes plot margins
+    axis.text.y = element_text(angle = 0, hjust = 1),  # Adjusts the y-axis text to be horizontal
+    axis.title.y = element_blank(),  # Removes the y-axis title
+    axis.title.x = element_text(margin = margin(t = 10, b = 0)),  # Shifts the x-axis title down
+    plot.caption = element_text(hjust = 0.052, color = "darkgrey"),
+    plot.subtitle = element_text(color = "azure4")# Customizes the caption
+  ) +
+  labs(
+    title = "Volume of Wine Exports in Europe in 2022",  # Sets the title of the plot
+    subtitle = "By Country (in million liters)",  # Sets the subtitle
+    x = "Volume (in million liters)",  # Labels the x-axis
+    y = "Country",  # Labels the y-axis
+    caption = "Source: Statista Market Insights"  # Sets the plot caption
+  )
+```
+## Value of Exported Wine in 2022 
+
+```{r}
+# Read in the data from an Excel file
+european_exports_value <- read_xlsx("value of wine exports.xlsx")
+
+# Create a horizontal bar chart using ggplot
+ggplot(european_exports_value, aes(y = reorder(Country, `Value of wine exports in Europe in 2022, by country (in million U.S. dollars)`), 
+                             x = `Value of wine exports in Europe in 2022, by country (in million U.S. dollars)`)) +
+  geom_bar(stat = "identity", fill = "deepskyblue4") +  # Creates horizontal bars with a deep sky blue color
+  geom_text(aes(label = round(`Value of wine exports in Europe in 2022, by country (in million U.S. dollars)`, 2)), 
+            hjust = -0.1, # Adjusts the position of the label to the right side of the bar
+            size = 3,
+            color = "black") +  # Adds text labels to the bars, showing the export value
+  theme_minimal() +  # Applies a minimalistic theme to the plot for a clean look
+  theme(
+    plot.margin = margin(5.5, 40, 5.5, 5.5), # Customizes the plot margins for better layout
+    axis.text.y = element_text(angle = 0, hjust = 1),  # Makes y-axis labels horizontal
+    axis.title.y = element_blank(),  # Removes the y-axis title for a cleaner look
+    axis.title.x = element_text(margin = margin(t = 10, b = 0)),  # Moves the x-axis title down for better spacing
+    plot.caption = element_text(hjust = 0.052, color = "darkgrey"),
+    plot.subtitle = element_text(color = "azure4")# Customizes the caption with a grey color and specific alignment
+  ) +
+  labs(
+    title = "Value of Wine Exports in Europe in 2022",  # Sets the plot title
+    subtitle = "By Country (in USD)",  # Sets the plot subtitle
+    x = "Value (in USD)",  # Labels the x-axis
+    y = "Country",  # Labels the y-axis
+    caption = "Source: Statista Market Insights"  # Sets the plot caption
+  )
+
+```
+
+The forecasted revenue trends in the European wine market are showing a pattern of growth, indicating a promising landscape for establishing a wine-making business. This positive outlook is further supported by trade data, which reveals that Italy, France, and Spain are leading in terms of both the volume of wine trade and the revenue generated from it. These countries, renowned for their rich wine-making heritage, not only dominate the European market but also have significant global influence in the wine industry.
+
+# Product Differentiation
+
+## Quality Analysis
+
+We will nalyze datasets for both red and white wines to identify key factors that influence wine quality, such as acidity, sugar content, and pH levels. Understanding these variables will guide us in selecting the most suitable regions for establishing vineyards. The selection process will heavily consider regional weather conditions, crucial for wine production, as different grape varieties require specific climatic conditions. By matching the ideal environmental parameters for each type of grape with the appropriate climate data, we can pinpoint the best locations for vineyards. This data-driven and strategic approach aims to optimize wine quality by aligning grape cultivation with the most favorable environmental conditions, thereby maximizing the potential of Amazon's wine-making venture.
+
+```{r}
+
+# Loading & Cleaning the datasets
+red_wine <- read_csv(file = "wineQualityReds.csv")
+white_wine <- read_csv(file = "wineQualityWhites.csv")
+red_wine <- red_wine %>% select(-...1)
+white_wine <- white_wine %>% select(-...1)
+
+```
+
+### Factors in correlation with Red Wine Quality
+
+```{r}
+# Calculating the correlation matrix
+correlation_matrix <- cor(red_wine)
+
+# Melting the correlation matrix for plotting
+melted_correlation_matrix <- melt(correlation_matrix)
+
+# Plotting the correlation matrix with lighter color scheme
+ggplot(data = melted_correlation_matrix, aes(x=Var1, y=Var2, fill=value)) +
+  geom_tile() +
+  geom_text(aes(label=sprintf("%.2f", value)), color="black", size=3) +
+  scale_fill_gradient2(low = "lightblue", high = "pink", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  labs(title = "Correlation Matrix of Red Wine Attributes", x = "", y = "")
+```
+The top factors most strongly correlated with red wine quality in this dataset are:
+
+Alcohol (Correlation: 0.48)
+Volatile Acidity (Correlation:-0.39)
+Sulphates (Correlation: 0.25)
+Citric Acid (Correlation: 0.23)
+
+### Factors in correlation with White Wine Quality
+
+```{r}
+# Calculating the correlation matrix
+correlation_matrix <- cor(white_wine)
+
+# Melting the correlation matrix for plotting
+melted_correlation_matrix <- melt(correlation_matrix)
+
+# Plotting the correlation matrix with lighter color scheme
+ggplot(data = melted_correlation_matrix, aes(x=Var1, y=Var2, fill=value)) +
+  geom_tile() +
+  geom_text(aes(label=sprintf("%.2f", value)), color="black", size=3) +
+  scale_fill_gradient2(low = "lightblue", high = "pink", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  labs(title = "Correlation Matrix of White Wine Attributes", x = "", y = "")
+```
+
+The top factors most strongly correlated with white wine quality in this dataset are:
+
+Alcohol (Correlation: 0.44)
+Density (Correlation:-0.31)
+Chlorides (Correlation: -0.21)
+Volatile Acidity (Correlation: 0.23)
+
+
+Analyzing the factors most strongly correlated with wine quality for both red and white wines, and considering the climatic and geographical conditions of Spain, Italy, and France, we can suggest potential regions for setting up a vineyard that aligns with these quality determinants. 
+
+# Analysing E-commerce Alcohol Trends
+
+
+```{r}
+ecommerce_wines <- read_xlsx("worldwide_ecommerce_wine.xlsx")
+ggplot(ecommerce_wines, aes(x = Year, y = `E-commerce revenue of the wine industry worldwide from 2017 to 2027 (in billion U.S. dollars)`)) +
+  geom_line(color = "deepskyblue4", group = 1) +  # Adding 'group = 1' ensures that ggplot knows how to connect the points
+  geom_point(size = 0.5) +
+  theme_minimal() +
+  theme(
+    plot.margin = margin(5.5, 40, 5.5, 5.5), # Customizes plot margins
+    axis.text.y = element_text(angle = 0, hjust = 1),  # Adjusts the y-axis text to be horizontal
+    axis.title.y = element_blank(),  # Removes the y-axis title
+    axis.title.x = element_text(margin = margin(t = 10, b = 0)),  # Shifts the x-axis title down
+    plot.caption = element_text(hjust = 0.052, color = "darkgrey"),
+    plot.subtitle = element_text(color = "azure4")# Customizes the caption
+  )+
+  labs(
+    title = "E-commerce Revenue of the Wine Industry Worldwide (2017 - 2027)",
+    subtitle = "in billion US Dollars",
+    x = "Year",
+    y = "Revenue (in billion U.S. dollars)",
+    caption = "Source: Statista Market Insights"  # Sets the plot caption
+  )
+```
+
+
+```{r}
+ecommerce_alcohol <- read_xlsx("alcohol ecommerce revenue.xlsx")
+ggplot(ecommerce_alcohol, aes(y = reorder(Country, `Alcohol e-commerce market revenue worldwide in 2023, by country (in billion U.S. dollars)`), 
+                             x = `Alcohol e-commerce market revenue worldwide in 2023, by country (in billion U.S. dollars)`)) +
+  geom_bar(stat = "identity", fill = "#7B1F3A") +
+  geom_text(aes(label = round(`Alcohol e-commerce market revenue worldwide in 2023, by country (in billion U.S. dollars)`, 2)), 
+            hjust = -0.1, # Adjusts the position of the text to the right of the bar
+            size = 3,
+            color = "black") +
+  theme_minimal() +
+  theme(
+    plot.margin = margin(5.5, 40, 5.5, 5.5), # Customizes plot margins
+    axis.text.y = element_text(angle = 0, hjust = 1),  # Adjusts the y-axis text to be horizontal
+    axis.title.y = element_blank(),  # Removes the y-axis title
+    axis.title.x = element_text(margin = margin(t = 10, b = 0)),  # Shifts the x-axis title down
+    plot.caption = element_text(hjust = 0.052, color = "darkgrey"),
+    plot.subtitle = element_text(color = "azure4")# Customizes the caption
+  ) +
+  labs(
+    title = "Vaule of Wine Exports in Europe in 2022",
+    subtitle = "By country (in billion U.S. dollars)",
+    x = "Value (in billion USD)",
+    y = "Country",
+    caption = "Source: Statista Market Insights"
+  )
+```
+
+The rising trend in e-commerce for alcohol, with projections indicating continued growth, presents a significant opportunity. Amazon, with its robust e-commerce capabilities, is well-positioned to capitalize on this market. Notably, the highest e-commerce values for alcohol are seen in China, the US, Japan, the UK, and South Korea. This observation is intriguing, especially considering that while European countries are among the largest consumers and producers of wine, they lag in e-commerce sales for this category.
+
+This gap in the European market represents a strategic opportunity for Amazon. By entering this relatively underserved e-commerce sector for wine in Europe, Amazon can leverage its established e-commerce strengths to create a niche. This move could be particularly impactful in creating product differentiation in highly competitive markets like the UK. By offering a unique and convenient online wine purchasing experience, Amazon can distinguish itself from local competitors and establish a strong foothold in the European market. The combination of Amazon's e-commerce expertise and the rich wine heritage of Europe could be a recipe for success, tapping into new consumer segments and driving growth in the online alcohol sales sector.
