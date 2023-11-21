@@ -44,7 +44,7 @@ library(vroom)  # for fast data import
 library(dplyr)  # for data manipulation
 
 # Load and clean the wine production dataset
-wine_production <- vroom('/Users/vaanirawat/Desktop/Wine Dataset/UNdata_Export_20231119_114926894.csv') %>% 
+wine_production <- vroom('UNdata_Export_20231119_114926894.csv') %>% 
   clean_names() %>%  # Converts all column names to lowercase and replaces spaces with underscores
   select(-value_footnotes)  # Removes the 'value_footnotes' column from the dataset
 
@@ -57,7 +57,7 @@ glimpse(wine_production)
 
 ```{r}
 # Load and clean the wine consumption data
-wine_consumption <- vroom('/Users/vaanirawat/Desktop/Wine Dataset/wine-consumption-per-person (1).csv') %>% 
+wine_consumption <- vroom('wine-consumption-per-person (1).csv') %>% 
   clean_names()  # Converts all column names to lowercase and replaces spaces with underscores
 
 # Rename columns to more understandable names
@@ -423,9 +423,9 @@ ggplot(ecommerce_alcohol, aes(y = reorder(Country, `Alcohol e-commerce market re
     plot.subtitle = element_text(color = "azure4")# Customizes the caption
   ) +
   labs(
-    title = "Vaule of Wine Exports in Europe in 2022",
+    title = "Alcohol e-commerce market revenue worldwide in 2023",
     subtitle = "By country (in billion U.S. dollars)",
-    x = "Value (in billion USD)",
+    x = "Revenue (in billion USD)",
     y = "Country",
     caption = "Source: Statista Market Insights"
   )
